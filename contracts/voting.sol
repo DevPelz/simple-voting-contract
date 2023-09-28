@@ -4,33 +4,38 @@ pragma solidity ^0.8.19;
 /// @title Voting Contract
 /// @notice this contract is used for managing voting on bids.
 contract Voting {
-    /// @notice The address of the contract owner and identifier for bids create
+    /// @notice The address of the contract owner and identifier for bids created
     address private owner;
     uint private bidsId;
 
     /// @dev Custom errors
     error Voting_InvalidAddress();
     error Voting_AlreadyRegistered();
-    error Voting_HasVotingRights();
+    error Voting_AlreadyHasVotingRights();
     error Voting_AlreadyVoted();
+    error Voting_OwnerCantParticpate();
 
     /// @notice Events emitted
     event BidCreated(string indexed _name, uint indexed creationTime);
     event VotedYes(uint indexed _ID);
     event VotedNo(uint indexed _ID);
+    event OwnerChanged(address indexed previousOwner, address indexed newOwner);
+    event RevokedVotingRights(address _voter, uint bidId);
 
     struct Voter {
-        address voter;
         uint votePower;
         bool hasVoted;
     }
 
     Voter[] private voters;
+    address[] private registeredParticipants;
 
     /// @dev mappings used in the contract
-    mapping(address => Voter) private voters_;
+    mapping(uint => mapping(address => Voter)) private voters_;
     mapping(address => bool) private _isRegistered;
     mapping(uint => Bids) private _idToBids;
+    mapping(uint => bool) private _bidActive;
+    mapping(uint => mapping(address => bool)) private _registeredAddressToBid;
 
     struct Bids {
         bytes name;
@@ -58,72 +63,93 @@ contract Voting {
     }
 
     /// @dev Modifier to restrict access to registered voters only.
-    modifier isRegisteredVoter() {
-        require(!_isRegistered[msg.sender], "Voting: Unauthorised Address");
+    modifier isRegisteredVoter(uint _bidID) {
+        require(
+            _registeredAddressToBid[_bidID][msg.sender] == true,
+            "Voting: Unauthorised Address"
+        );
         _;
     }
 
     /// @dev Modifier to restrict access to voters who haven't voted yet.
-    modifier hasVoted() {
-        require(!voters_[msg.sender].hasVoted, "Voting: voter already voted");
+    modifier hasVoted(uint _bidID) {
+        require(
+            voters_[_bidID][msg.sender].hasVoted == false,
+            "Voting: voter already voted"
+        );
+        _;
+    }
+
+    modifier isBidActive() {
+        require(
+            _idToBids[_bidID].voting_Duration >= block.timestamp,
+            "Voting: Bid expired"
+        );
         _;
     }
 
     /// @dev Registers a list of voters.
     /// @param _voters An array of voter addresses to register.
-    function registerVoters(address[] memory _voters) external onlyOwner {
-        for (uint i = 0; i <= _voters.length; i++) {
+    /// @param _bidID the id of the bid to register voters on.
+    function registerVoters(
+        address[] memory _voters,
+        uint _bidID
+    ) internal onlyOwner {
+        for (uint i = 0; i < _voters.length; i++) {
             if (_voters[i] == address(0)) {
                 revert Voting_InvalidAddress();
             }
-            if (!_isRegistered[_voters[i]]) {
+            if (_voters[i] == owner) {
+                revert Voting_OwnerCantParticpate();
+            }
+            if (_registeredAddressToBid[_bidID][_voters[i]] == true) {
                 revert Voting_AlreadyRegistered();
             }
-            if (voters_[_voters[i]].votePower > 0) {
-                revert Voting_HasVotingRights();
+            if (voters_[_bidID][_voters[i]].votePower > 0) {
+                revert Voting_AlreadyHasVotingRights();
             }
-            if (!voters_[_voters[i]].hasVoted) {
+            if (voters_[_bidID][_voters[i]].hasVoted == true) {
                 revert Voting_AlreadyVoted();
             }
 
-            uint _votepower = voters_[_voters[i]].votePower + 1;
-            bool _hasVoted = voters_[_voters[i]].hasVoted;
-
+            Voter storage _Voters = voters_[_bidID][_voters[i]];
+            registeredParticipants.push(_voters[i]);
             voters.push(
-                Voter({
-                    voter: _voters[i],
-                    votePower: _votepower,
-                    hasVoted: _hasVoted
-                })
+                Voter({votePower: _Voters.votePower = 1, hasVoted: false})
             );
-            _isRegistered[_voters[i]] = true;
+            _registeredAddressToBid[_bidID][_voters[i]] = true;
         }
     }
 
     /// @dev Adds a new voter.
     /// @param _newVoter The address of the new voter to add.
-    function addVoter(address _newVoter) external onlyOwner hasVoted {
+    function addVoter(
+        address _newVoter,
+        uint _bidID
+    ) external onlyOwner hasVoted(_bidID) {
         require(_newVoter != address(0), "Voting: register a valid address");
-        require(!_isRegistered[_newVoter], "Voting: Already registered");
+        require(_isRegistered[_newVoter], "Voting: Already registered");
         require(
-            voters_[_newVoter].votePower < 1,
+            voters_[_bidID][_newVoter].votePower < 1,
             "Voting: voter has voting rights already"
         );
-        voters_[_newVoter].votePower = 1;
-        voters_[_newVoter].hasVoted = false;
+        voters_[_bidID][_newVoter].votePower = 1;
+        voters_[_bidID][_newVoter].hasVoted = false;
         _isRegistered[_newVoter] = true;
     }
 
     /// @dev Creates a new bid.
     /// @param _name The name of the bid.
     /// @param _voting_Duration The duration of the voting period in seconds.
-    function createBids(
+    function createBid(
+        address[] memory _voters,
         string memory _name,
         uint _voting_Duration
     ) external onlyOwner {
         bidsId++;
         bytes memory name_ = bytes(_name);
         Bids storage bids = _idToBids[bidsId];
+        registerVoters(_voters, bidsId);
         bids.name = name_;
         bids.positive_VoteCount = 0;
         bids.negative_VoteCount = 0;
@@ -139,14 +165,16 @@ contract Voting {
     /// Emits a `VotedYes` event upon a successful vote.
     function voteYes(
         uint _bidID
-    ) external denyOwner isRegisteredVoter hasVoted {
-        require(
-            _idToBids[_bidID].voting_Duration >= block.timestamp,
-            "Voting: Bid expired"
-        );
-        voters_[msg.sender].votePower -= 1;
+    )
+        external
+        isBidActive
+        denyOwner
+        isRegisteredVoter(_bidID)
+        hasVoted(_bidID)
+    {
+        voters_[_bidID][msg.sender].votePower -= 1;
         _idToBids[_bidID].positive_VoteCount += 1;
-        voters_[msg.sender].hasVoted = true;
+        voters_[_bidID][msg.sender].hasVoted = true;
 
         emit VotedYes(_bidID);
     }
@@ -156,14 +184,18 @@ contract Voting {
     /// @dev This function can only be called by registered voters who have not voted for this bid.
     /// It checks if the bid is still within the voting duration and updates the vote count accordingly.
     /// Emits a `VotedNo` event upon a successful vote.
-    function voteNo(uint _bidID) external denyOwner isRegisteredVoter hasVoted {
-        require(
-            _idToBids[_bidID].voting_Duration >= block.timestamp,
-            "Voting: Bid expired"
-        );
-        voters_[msg.sender].votePower -= 1;
+    function voteNo(
+        uint _bidID
+    )
+        external
+        isBidActive
+        denyOwner
+        isRegisteredVoter(_bidID)
+        hasVoted(_bidID)
+    {
+        voters_[_bidID][msg.sender].votePower -= 1;
         _idToBids[_bidID].negative_VoteCount += 1;
-        voters_[msg.sender].hasVoted = true;
+        voters_[_bidID][msg.sender].hasVoted = true;
 
         emit VotedNo(_bidID);
     }
@@ -186,7 +218,9 @@ contract Voting {
     /// @param _bidID The unique identifier of the bid.
     /// @return A string indicating the winning result, either "Winning Bid is Positive" or "Winning Bid is Negative."
     /// @dev This function can only be called after the voting duration has passed.
-    function bidResults(uint _bidID) external view returns (string memory) {
+    function bidResults(
+        uint _bidID
+    ) external view onlyOwner returns (string memory) {
         require(
             block.timestamp > _idToBids[_bidID].voting_Duration,
             "Voting: bid not ended yet"
@@ -196,7 +230,13 @@ contract Voting {
             _idToBids[_bidID].negative_VoteCount
         ) {
             return "Winning Bid is Positive";
+        } else if (
+            _idToBids[_bidID].positive_VoteCount ==
+            _idToBids[_bidID].negative_VoteCount
+        ) {
+            return "The Bid Ended in a Tie";
         }
+
         return "Winning Bid is Negative";
     }
 
@@ -205,22 +245,32 @@ contract Voting {
     /// @dev This function can only be called by the contract owner.
     /// It removes the voter's information from the list of registered voters, effectively revoking their voting rights.
     function revokeVotingRights(
-        address _voter
-    ) external onlyOwner isRegisteredVoter {
-        delete voters_[_voter];
+        address _voter,
+        uint _bidID
+    ) external onlyOwner hasVoted(_bidID) {
+        require(
+            _registeredAddressToBid[_bidID][_voter] == true,
+            "Voting: not registered"
+        );
+        delete voters_[_bidID][_voter];
+        _registeredAddressToBid[_bidID][_voter] = false;
+
+        emit RevokedVotingRights(_voter, _bidID);
     }
 
     /// @notice Resets the registration status of all voters.
     /// @dev This function can only be called by the contract owner.
-    function resetVoters() external onlyOwner {
-        for (uint i = 0; i <= voters.length; i++) {
-            _isRegistered[voters[i].voter] = false;
+    function resetVoters(uint _bidID) external onlyOwner {
+        for (uint i = 0; i < registeredParticipants.length; i++) {
+            _registeredAddressToBid[_bidID][registeredParticipants[i]] = false;
+            delete voters_[_bidID][registeredParticipants[i]];
         }
-        delete voters;
     }
 
     function changeOwner(address _newOwner) external onlyOwner {
         require(_newOwner != owner, "Already the owner");
         owner = _newOwner;
+
+        emit OwnerChanged(owner, _newOwner);
     }
 }
