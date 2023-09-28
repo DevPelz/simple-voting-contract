@@ -80,7 +80,7 @@ contract Voting {
         _;
     }
 
-    modifier isBidActive() {
+    modifier isBidActive(uint _bidID) {
         require(
             _idToBids[_bidID].voting_Duration >= block.timestamp,
             "Voting: Bid expired"
@@ -167,7 +167,7 @@ contract Voting {
         uint _bidID
     )
         external
-        isBidActive
+        isBidActive(_bidID)
         denyOwner
         isRegisteredVoter(_bidID)
         hasVoted(_bidID)
@@ -188,7 +188,7 @@ contract Voting {
         uint _bidID
     )
         external
-        isBidActive
+        isBidActive(_bidID)
         denyOwner
         isRegisteredVoter(_bidID)
         hasVoted(_bidID)
