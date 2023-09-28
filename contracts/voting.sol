@@ -27,6 +27,7 @@ contract Voting {
 
     Voter[] private voters;
 
+    /// @dev mappings used in the contract
     mapping(address => Voter) private voters_;
     mapping(address => bool) private _isRegistered;
     mapping(uint => Bids) private _idToBids;
@@ -38,15 +39,21 @@ contract Voting {
         uint voting_Duration;
     }
 
-    /// @dev Contract constructor.
-    /// @param _owner The address that deploys and owns the contract.
-    constructor(address _owner) {
-        owner = _owner;
+    /// @dev Contract constructor sets owner to deployer.
+    constructor() {
+        owner = msg.sender;
     }
 
     /// @dev Modifier to restrict access to only the contract owner.
     modifier onlyOwner() {
         require(owner == msg.sender, "Voting: only owner has access");
+        _;
+    }
+
+    /// @notice Modifier to deny access to the contract owner.
+    /// @dev This modifier ensures that the contract owner is not authorized to perform certain actions.
+    modifier denyOwner() {
+        require(msg.sender != owner, "Voting: Owner is Unauthorised");
         _;
     }
 
@@ -130,7 +137,9 @@ contract Voting {
     /// @dev This function can only be called by registered voters who have not voted for this bid.
     /// It checks if the bid is still within the voting duration and updates the vote count accordingly.
     /// Emits a `VotedYes` event upon a successful vote.
-    function voteYes(uint _bidID) external isRegisteredVoter hasVoted {
+    function voteYes(
+        uint _bidID
+    ) external denyOwner isRegisteredVoter hasVoted {
         require(
             _idToBids[_bidID].voting_Duration >= block.timestamp,
             "Voting: Bid expired"
@@ -147,7 +156,7 @@ contract Voting {
     /// @dev This function can only be called by registered voters who have not voted for this bid.
     /// It checks if the bid is still within the voting duration and updates the vote count accordingly.
     /// Emits a `VotedNo` event upon a successful vote.
-    function voteNo(uint _bidID) external isRegisteredVoter hasVoted {
+    function voteNo(uint _bidID) external denyOwner isRegisteredVoter hasVoted {
         require(
             _idToBids[_bidID].voting_Duration >= block.timestamp,
             "Voting: Bid expired"
@@ -191,6 +200,16 @@ contract Voting {
         return "Winning Bid is Negative";
     }
 
+    /// @notice Revokes voting rights from a registered voter.
+    /// @param _voter The address of the voter whose voting rights will be revoked.
+    /// @dev This function can only be called by the contract owner.
+    /// It removes the voter's information from the list of registered voters, effectively revoking their voting rights.
+    function revokeVotingRights(
+        address _voter
+    ) external onlyOwner isRegisteredVoter {
+        delete voters_[_voter];
+    }
+
     /// @notice Resets the registration status of all voters.
     /// @dev This function can only be called by the contract owner.
     function resetVoters() external onlyOwner {
@@ -198,5 +217,10 @@ contract Voting {
             _isRegistered[voters[i].voter] = false;
         }
         delete voters;
+    }
+
+    function changeOwner(address _newOwner) external onlyOwner {
+        require(_newOwner != owner, "Already the owner");
+        owner = _newOwner;
     }
 }
