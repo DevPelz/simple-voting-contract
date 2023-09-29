@@ -12,6 +12,7 @@ const config: HardhatUserConfig = {
       accounts: [process.env.PRIVATEKEY], //Your private key starting with "0x"
     },
   },
+  url: "https://json-rpc.testnet.swisstronik.com/",
 };
 
 export default config;
