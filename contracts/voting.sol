@@ -22,6 +22,7 @@ contract Voting {
     event OwnerChanged(address indexed previousOwner, address indexed newOwner);
     event RevokedVotingRights(address _voter, uint bidId);
 
+    /// @dev the struct for every registered voter.
     struct Voter {
         uint votePower;
         bool hasVoted;
@@ -37,6 +38,7 @@ contract Voting {
     mapping(uint => bool) private _bidActive;
     mapping(uint => mapping(address => bool)) private _registeredAddressToBid;
 
+    /// @dev the struct for every Bid.
     struct Bids {
         bytes name;
         uint positive_VoteCount;
@@ -79,7 +81,7 @@ contract Voting {
         );
         _;
     }
-
+    /// @dev Modifier to check the status of the bid.
     modifier isBidActive(uint _bidID) {
         require(
             _idToBids[_bidID].voting_Duration >= block.timestamp,
@@ -123,6 +125,7 @@ contract Voting {
 
     /// @dev Adds a new voter.
     /// @param _newVoter The address of the new voter to add.
+
     function addVoter(
         address _newVoter,
         uint _bidID
@@ -260,6 +263,7 @@ contract Voting {
 
     /// @notice Resets the registration status of all voters.
     /// @dev This function can only be called by the contract owner.
+    /// @param _bidID the id of the bid to be reset
     function resetVoters(uint _bidID) external onlyOwner {
         for (uint i = 0; i < registeredParticipants.length; i++) {
             _registeredAddressToBid[_bidID][registeredParticipants[i]] = false;
@@ -267,6 +271,9 @@ contract Voting {
         }
     }
 
+    /// @notice Changes the owner of the contract.
+    /// @dev This function can only be called by the contract owner.
+    /// @param _newOwner address of the newOwner.
     function changeOwner(address _newOwner) external onlyOwner {
         require(_newOwner != owner, "Already the owner");
         owner = _newOwner;
