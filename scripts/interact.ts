@@ -38,7 +38,10 @@ async function main() {
 
   console.log(
     "Positive VoteCount:",
-    Voting.interface.decodeFunctionResult("bidResults", responseMessage)[1]
+    Voting.interface.decodeFunctionResult(
+      "getPositiveVoteCount",
+      responseMessage
+    )[1]
   );
 
   const responseMessage2 = await sendShieldedQuery(
@@ -49,7 +52,10 @@ async function main() {
 
   console.log(
     "Negative VoteCount:",
-    Voting.interface.decodeFunctionResult("bidResults", responseMessage2)[2]
+    Voting.interface.decodeFunctionResult(
+      "getNegativeVoteCount",
+      responseMessage2
+    )[2]
   );
 }
 
