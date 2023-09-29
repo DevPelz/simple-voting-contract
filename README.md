@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a smart contract for managing voting on bids deployed on the SwissTron blockchain. It allows the owneer to create bids, register voters, and allow participants to cast votes. The contract is designed to ensure fair and secure voting processes in a Dao setting.
+This is a smart contract for managing voting on bids deployed on the SwissTron blockchain. It allows the owneer to create bids, register voters, and allow participants to cast votes. The contract is designed to ensure fair and secure voting processes, this kind of voting design is mainly used by DAO's.
 
 ### Contract Address
 
