@@ -49,7 +49,11 @@ async function main() {
   const setMessageTx = await sendShieldedTransaction(
     signer,
     votingCA,
-    Voting.interface.encodeFunctionData("createBid", [participants, "", 10000]),
+    Voting.interface.encodeFunctionData("createBid", [
+      participants,
+      testBid1,
+      10000,
+    ]),
     0
   );
   await setMessageTx.wait();
