@@ -43,10 +43,9 @@ async function main() {
   ];
 
   const testBid1 = "TESTING!";
-  const testBid2 = "TESTING!!";
 
   // Send a shielded transaction to set a message in the contract
-  const setMessageTx = await sendShieldedTransaction(
+  const createBidTx = await sendShieldedTransaction(
     signer,
     votingCA,
     Voting.interface.encodeFunctionData("createBid", [
@@ -56,10 +55,35 @@ async function main() {
     ]),
     0
   );
-  await setMessageTx.wait();
+  await createBidTx.wait();
 
   //It should return a TransactionResponse object
-  console.log("Transaction Receipt: ", setMessageTx);
+  console.log("Transaction Receipt: ", createBidTx);
+
+  // Revoke rights
+  const revokeVotingRightsTx = await sendShieldedTransaction(
+    signer,
+    votingCA,
+    Voting.interface.encodeFunctionData("revokeVotingRights", [
+      "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB",
+      1,
+    ]),
+    0
+  );
+  await revokeVotingRightsTx.wait();
+
+  console.log("Transaction Receipt: ", revokeVotingRightsTx);
+
+  // Reset Voters
+  const resetVoterstx = await sendShieldedTransaction(
+    signer,
+    votingCA,
+    Voting.interface.encodeFunctionData("resetVoters", [1]),
+    0
+  );
+  await resetVoterstx.wait();
+
+  console.log("Transaction Receipt: ", resetVoterstx);
 }
 
 main().catch((error) => {
