@@ -41,7 +41,7 @@ async function main() {
     Voting.interface.decodeFunctionResult(
       "getPositiveVoteCount",
       responseMessage
-    )[1]
+    )[0]
   );
 
   const responseMessage2 = await sendShieldedQuery(
@@ -55,7 +55,7 @@ async function main() {
     Voting.interface.decodeFunctionResult(
       "getNegativeVoteCount",
       responseMessage2
-    )[2]
+    )[0]
   );
 }
 
