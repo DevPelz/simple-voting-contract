@@ -14,11 +14,11 @@ interface IVoting {
 
     function voteNo(uint _bidID) external;
 
-    function getPositiveVoteCount(uint _bidID) external;
+    function getPositiveVoteCount(uint _bidID) external returns (uint);
 
-    function getNegativeVoteCount(uint _bidID) external;
+    function getNegativeVoteCount(uint _bidID) external returns (uint);
 
-    function bidResults(uint _bidID) external;
+    function bidResults(uint _bidID) external returns (string memory);
 
     function revokeVotingRights(address _voter, uint _bidID) external;
 

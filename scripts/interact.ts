@@ -36,6 +36,7 @@ async function main() {
     Voting.interface.encodeFunctionData("getPositiveVoteCount", [1])
   );
 
+  console.log("=========Getting VoteCounts==========");
   console.log(
     "Positive VoteCount:",
     Voting.interface.decodeFunctionResult(
@@ -57,8 +58,34 @@ async function main() {
       responseMessage2
     )[0]
   );
-}
+  console.log("============================================");
 
+  const bidResult = await sendShieldedQuery(
+    signer.provider,
+    votingCA,
+    Voting.interface.encodeFunctionData("bidResults", [1])
+  );
+
+  console.log("=========Getting Results==========");
+  console.log(
+    "Bid Result:",
+    Voting.interface.decodeFunctionResult("bidResults", bidResult)[0]
+  );
+  console.log("============================================");
+
+  const _resetVoters = await sendShieldedQuery(
+    signer.provider,
+    votingCA,
+    Voting.interface.encodeFunctionData("resetVoters", [1])
+  );
+
+  console.log("=========Resetting Voters==========");
+  console.log(
+    "Reset:",
+    Voting.interface.decodeFunctionResult("resetVoters", _resetVoters)[0]
+  );
+  console.log("============================================");
+}
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
 main().catch((error) => {
